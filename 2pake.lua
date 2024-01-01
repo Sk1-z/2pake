@@ -89,11 +89,6 @@ while true do
     Extension = "cc"
     Header = "hh"
     break
-  elseif language == 2 then
-    Language = "D"
-    Extension = "d"
-    Header = "d"
-    break
   else
     io.write("Unrecognized Option. Please try again.\n")
   end
@@ -101,22 +96,18 @@ end
 
 -- Compiler
 while true do
-  if Language == "D" then
-    io.write("Compiler?\n[0] dmd\n[1] gdc\n[2] ldc\n")
-  else
-    io.write("Compiler?\n[0] gcc\n[1] clang\n[2] mingw\n")
-  end
+  io.write("Compiler?\n[0] dmd\n[1] gdc\n[2] ldc\n")
 
   local compiler = tonumber(io.read())
 
   if compiler == 0 then
-    Compiler = Language == "D" and "dmd" or "gcc"
+    Compiler = "gcc"
     break
   elseif compiler == 1 then
-    Compiler = Language == "D" and "gdc" or "clang"
+    Compiler = "clang"
     break
   elseif compiler == 2 then
-    Compiler = Language == "D" and "ldc" or "mingw"
+    Compiler = "mingw"
     break
   else
     io.write("Unrecognized Option. Please try again.\n")
@@ -196,14 +187,14 @@ for _, key in ipairs(order) do
   if opt.use then
     if opt.type == "config" then
       Script:write("\n\tfilter { \"configurations:" .. opt.name .. "\" }\n")
-      if Language ~= "D" then Script:write("\t\tdefines { \"" .. opt.macro .. "\" }\n") end
+      Script:write("\t\tdefines { \"" .. opt.macro .. "\" }\n")
       Script:write("\t\truntime \"" .. opt.runtime .. "\"\n")
       if opt.optimize then
         Script:write("\t\toptimize \"On\"\n")
       end
     else
       Script:write("\n\tfilter { \"platforms:" .. opt.name .. "\" }\n")
-      if Language ~= "D" then Script:write("\t\tdefines { \"" .. opt.macro .. "\" }\n") end
+      Script:write("\t\tdefines { \"" .. opt.macro .. "\" }\n")
       Script:write("\t\tsystem \"" .. opt.system .. "\"\n\n")
     end
   end
@@ -220,8 +211,7 @@ if count == 1 then
   Script:write("\tkind \"" .. Projects[1].kind .. "\"\n")
   Script:write("\ttargetdir \"bin/%{cfg.buildcfg}_%{cfg.system}\"\n\n")
   Script:write("\tfiles { \"src/**." .. Extension .. "\", \"src/**." .. Header .. "\"}\n")
-
-  if Language ~= "D" then Script:write("\nincludedirs\n{\n\t\"src\"\n}\n") end
+  Script:write("\nincludedirs\n{\n\t\"src\"\n}\n")
 elseif count > 1 then
   for _, proj in ipairs(Projects) do
     os.execute("mkdir -p " .. proj.name .. " 2>/dev/null")
@@ -245,34 +235,28 @@ elseif count > 1 then
     proj_script:write("\ttargetdir \"../bin/%{cfg.buildcfg}_%{cfg.system}/%{prj.name}\"\n\n")
     proj_script:write("\tfiles { \"src/**." .. Extension .. "\", \"src/**." .. Header .. "\"}\n")
 
-    if Language ~= "D" then
-      proj_script:write("\nincludedirs\n{\n\t\"src\"")
+    proj_script:write("\nincludedirs\n{\n\t\"src\"")
 
-      if proj.includeOther then
-        for _, lib in ipairs(Projects) do
-          if lib.kind ~= "ConsoleApp" then
-            proj_script:write(",\n\t\"../" .. lib.name .. "/src\"")
-          end
+    if proj.includeOther then
+      for _, lib in ipairs(Projects) do
+        if lib.kind ~= "ConsoleApp" then
+          proj_script:write(",\n\t\"../" .. lib.name .. "/src\"")
         end
       end
+    end
 
+    proj_script:write("\n}\n")
+
+    if proj.includeOther then
+      proj_script:write("\nlinks\n{")
+      for _, lib in ipairs(Projects) do
+        if lib.kind ~= "ConsoleApp" then
+          proj_script:write("\n\t\"" .. lib.name .. "\",")
+        end
+      end
       proj_script:write("\n}\n")
-
-      if proj.includeOther then
-        proj_script:write("\nlinks\n{")
-        for _, lib in ipairs(Projects) do
-          if lib.kind ~= "ConsoleApp" then
-            proj_script:write("\n\t\"" .. lib.name .. "\",")
-          end
-        end
-        proj_script:write("\n}\n")
-      end
     end
   end
 end
 
-if Language == "D" then
-  os.execute("premake5 --dc=" .. Compiler .. " gmake")
-else
-  os.execute("premake5 --cc=" .. Compiler .. " gmake2")
-end
+os.execute("premake5 --cc=" .. Compiler .. " gmake2")
